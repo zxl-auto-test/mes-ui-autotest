@@ -1,0 +1,6 @@
+# 依赖锁定：与已缓存内核 chromium-1255 匹配，勿随意升级
+# 升级 playwright 会导致内核版本不匹配，需要重新下载（且 install 会自动清理旧内核）
+playwright==1.65.2
+pytest==9.2.0
+pytest-xdist==3.8.0
+pytest-html==4.2.0

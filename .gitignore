@@ -1,0 +1,20 @@
+# ---------- 依赖与虚拟环境 ----------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ---------- 运行产物（不进仓库） ----------
+state/           # 登录态 cookie，等同凭据
+logs/
+reports/
+
+# ---------- 编辑器 ----------
+.vscode/
+.idea/
+
+# ---------- 本地私有配置 / 凭据 ----------
+.env
+.env.*
+config/local_settings.py
