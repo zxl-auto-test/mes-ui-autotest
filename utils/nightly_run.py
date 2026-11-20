@@ -113,7 +113,7 @@ def main() -> int:
             "【MES 自动化】登录态已失效，今晚回归未执行。\n"
             "请上班后运行：09_自动化测试 目录下\n"
             "  .venv\\Scripts\\python.exe utils\\save_login_state.py\n"
-            "（验证码由小爪识别），保存后当晚自动恢复。"
+            "（验证码由张墨尘识别），保存后当晚自动恢复。"
         )
         log("退出码 3（登录态失效）")
         return 3
