@@ -1,12 +1,45 @@
 # MES Web 端 UI 自动化测试
 
-> 建立：2026-11-16 13:15:31 ｜ 最后更新：2026-11-16 15:36:16 ｜ 维护：张张 / 小爪
+> 建立：2026-11-16 13:15:31 ｜ 最后更新：2026-11-20 16:13:48 ｜ 维护：张张 / 小爪
 >
 > 方法文档：`Web端UI自动化测试全流程.md` ｜ 范围清单：`自动化范围清单.md` ｜ 定位清单：`元素定位清单.md`
 
 被测系统：MES 数据采集系统（Vue + Element UI + Avue/BladeX）  
 测试环境：`http://your-mes-host:90/#/login`（默认账号 admin，密码走环境变量，见下节）  
 本批范围：外包工时管理 —— 8 条业务脚本 + 1 条登录态前置，**11 个用例项连跑 3 轮 0 失败**
+
+---
+
+## ⚡ Quick Start（新环境从零跑通，约 10~15 分钟）
+
+clone 之后**不能直接 `pytest`**——仓库不含解释器、浏览器内核、登录态和真实配置。按下面 5 步走（默认 Windows + Git Bash）：
+
+```bash
+# 1) 建 Python 3.10 虚拟环境并装依赖
+python -m venv .venv
+./.venv/Scripts/python.exe -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+
+# 2) 下载 Playwright 浏览器内核（约 130MB，新环境必须执行一次）
+./.venv/Scripts/python.exe -m playwright install chromium
+
+# 3) 配置被测环境（7 个变量，见下一节「运行前配置」）
+export MES_BASE_URL="http://你的MES地址:90"
+export MES_USER="admin"
+export MES_PASSWORD="你的密码"
+
+# 4) 生成登录态。验证码是半自动闭环：
+#    脚本把验证码截图到 state/captcha.png → 你打开图片看一眼，
+#    把 4 位答案写进 state/captcha_answer.txt → 脚本轮询读到后自动填入并登录
+./.venv/Scripts/python.exe utils/save_login_state.py
+
+# 5) 先跑冒烟自检，绿了再跑全量
+./.venv/Scripts/python.exe -m pytest -m smoke
+./.venv/Scripts/python.exe -m pytest
+```
+
+**重要认知——这个仓库能复用什么、不能复用什么**：
+- ✅ 可复用的是**框架层**：`pages/base_page.py`（等待/弹窗/表格/菜单等公共能力）、验证码登录态闭环、造数清理、HTML 报告、定时回归 + 通知；
+- ❌ **用例层不可移植**：11 条用例是针对特定 MES 实例的「外包工时管理」页面编写的（15 列表头、工作令字典、字段联动都是实测写死的）。换一个被测系统，业务用例必然失败——需要按你的系统重写 `pages/` 里的页面对象和 `tests/` 里的用例。
 
 ---
 
@@ -82,9 +115,11 @@ Windows 用 `set`（cmd）或 `$env:MES_BASE_URL="..."`（PowerShell）。
 | ----- | -------------------------------------------------------------- |
 | 解释器   | `<仓库路径>\.venv\Scripts\python.exe`（Python 3.10.11） |
 | 依赖    | playwright 1.65.2 / pytest 9.2.0 / pytest-xdist / pytest-html  |
-| 浏览器内核 | `%LOCALAPPDATA%\ms-playwright\chromium-1255`（已缓存，无需下载）         |
+| 浏览器内核 | `%LOCALAPPDATA%\ms-playwright\`（**仅原作者机器**已缓存 chromium-1255）         |
 
-**⚠️ 不要运行 `playwright install`**：它装完会清理"过期内核"，可能删掉缓存里的其他浏览器版本。当前内核已匹配，直接用。
+**⚠️ 关于 `playwright install`，分两种情况**：
+- **新环境（clone 本仓库的人）**：必须先执行 `./.venv/Scripts/python.exe -m playwright install chromium`，否则用例起不来；
+- **原作者本机**：内核已缓存且与 playwright 1.65.2 匹配，**不要运行**——它装完会清理"过期内核"，可能删掉缓存里的其他浏览器版本。
 
 换机器重建环境：
 
@@ -100,7 +135,8 @@ Windows 用 `set`（cmd）或 `$env:MES_BASE_URL="..."`（PowerShell）。
 ```bash
 cd <仓库路径>
 
-# 首次或会话失效后：先存登录态（会弹浏览器，脚本自动识别验证码）
+# 首次或会话失效后：先存登录态（脚本截图验证码 → 你人工把 4 位答案写入
+# state/captcha_answer.txt → 脚本自动填入登录；详见第四节）
 ./.venv/Scripts/python.exe utils/save_login_state.py
 
 ./.venv/Scripts/python.exe -m pytest                       # 全部 11 项，约 85 秒
@@ -118,7 +154,7 @@ cd <仓库路径>
 
 ## 四、登录态（会话复用）
 
-验证码是 4 位图形码，脚本用「截图 → 识别 → 自动登录」闭环：
+验证码是 4 位图形码，脚本本身不做 OCR，闭环是「截图 → **人工识别** → 自动填入」：
 
 ```bash
 ./.venv/Scripts/python.exe utils/save_login_state.py
@@ -226,3 +262,4 @@ Register-ScheduledTask -TaskName "MES-UI每日回归" `
 | v0.1 | 2026-11-16 13:31:00 | 框架搭建完成：配置、BasePage、登录页/工时页对象、conftest、自检用例                                                            |
 | v1.0 | 2026-11-16 14:17:25 | 阶段 3~~7 完成：登录态自动闭环、9 条脚本上线、11 项连跑 3 轮全绿（85~~89s/轮）；新增定位清单与 11 条已知坑                                    |
 | v1.1 | 2026-11-16 15:36:16 | 阶段 7 落地：run_nightly.bat + nightly_run.py（探活→回归→时间戳报告→企微通知），全链路实测通过（11 passed，109s）；17:00 任务计划注册命令见第八节 |
+| v1.2 | 2026-11-20 16:13:48 | 开源适配：新增 Quick Start（新环境 5 步跑通）与"框架可复用/用例不可移植"说明；修正 playwright install 警告的作用范围；明确验证码为人工识别闭环 |
